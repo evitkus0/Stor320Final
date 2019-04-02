@@ -1,0 +1,57 @@
+---
+title: "Final Project Part 2"
+author: "Evan Vitkus"
+date:  "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+#Instructions
+
+**Assigned:** Friday, February 22, 2019
+
+**Due:** Friday, March 1, 2019 by 5:00 PM
+
+**Submission:** Submit via an electronic document on Sakai. Must be submitted as an HTML file generated in RStudio. For each question, show your R code that you used to answer each question in the provided chunks. When a written response is required, be sure to answer the entire question in complete sentences outside the code chunks. When figures are required, be sure to follow all requirements to receive full credit. Point values are assigned for every part of this analysis.
+
+```{r setup, include=F}
+options(scipen=999)
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+library(lubridate)
+```
+
+#Introduction
+
+Does high cholesterol lead to high crime rates? Probably not, but web scraping will definitely lead to lower crime rates. This data analysis assignment is separated into three parts which cover material from the lectures on tidy data, joins, and webscraping. In Part 1, you will demonstrate the basic concept of joins by connecting relational data involving a cholesterol study. For this segment, spreading and gathering will be utilized to create a single tidy dataset ready for analysis. In Part 2, we will join all 5 datasets from the lecture series on web scraping. Part 3 will require an understanding of web scraping to import a table found on Wikipedia directly into R. The following R code reads in all datasets required for this assignment.
+
+```{r,message=F}
+# Data for Part 1
+finalP=read_csv("PWD_Disclosure_Data_FY2018_EOY.csv")
+```
+```{r}
+finalP <- separate(finalP,SUBMIT_DATE,into=c("Submit_Date", "Submit_Time"),sep=" ")
+finalP <- separate(finalP,DETERMINATION_DATE,into=c("Determin_Date", "Determin_Time"),sep=" ")
+finalP$Submit_Date <- as.Date(finalP$Submit_Date, format = c("%m/%d/%Y"))
+finalP$Determin_Date <- as.Date(finalP$Determin_Date, format = c("%m/%d/%Y"))
+```
+
+```{r}
+ggplot(finalP) + geom_bar(mapping = aes(format(finalP$Submit_Date,"%m"), na.rm = T), na.rm = T)
+ggplot(finalP) + geom_bar(mapping = aes(format(finalP$Determin_Date,"%m"), na.rm = T))
+
+head(finalP)
+```
+
+
+
+```{r}
+salD <- finalP %>%  group_by(SUPERVISE_OTHER_EMP) %>%  summarize(sal = mean(PWD_WAGE_RATE, na.rm = TRUE))
+ggplot(data = salD, mapping = aes(x = SUPERVISE_OTHER_EMP, y = sal)) +  geom_col()
+```
+```{r}
+salD <- finalP %>%  group_by(SUPERVISE_HOW_MANY) %>%  summarize(sal = mean(PWD_WAGE_RATE, na.rm = TRUE))
+ggplot(data = salD, mapping = aes(x = SUPERVISE_HOW_MANY, y = sal)) +  geom_col()
+ggplot(data = finalP, mapping = aes(x = SUPERVISE_HOW_MANY, y = PWD_WAGE_RATE)) +  geom_point() +  geom_smooth(se = TRUE, method = "lm") + xlab("Employees Supervised") + ylab("Mean Salary") + ggtitle("Salary vs Number of Employees Supervised") +xlim(0, 375)+ylim(0, 300000)
+```
+
