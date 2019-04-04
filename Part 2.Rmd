@@ -55,3 +55,11 @@ ggplot(data = salD, mapping = aes(x = SUPERVISE_HOW_MANY, y = sal)) +  geom_col(
 ggplot(data = finalP, mapping = aes(x = SUPERVISE_HOW_MANY, y = PWD_WAGE_RATE)) +  geom_point() +  geom_smooth(se = TRUE, method = "lm") + xlab("Employees Supervised") + ylab("Mean Salary") + ggtitle("Salary vs Number of Employees Supervised") +xlim(0, 300)+ylim(0, 300000)
 ```
 
+```{r}
+finalP$diffDate = difftime(finalP$Determin_Date,finalP$Submit_Date,units='weeks')
+finalP4 <- subset(finalP, !is.na(finalP$diffDate))
+finalP4 <- subset(finalP, !is.na(finalP$Submit_Date))
+finalP4$subMonth = format(finalP2$Submit_Date,"%m")
+ggplot(finalP4) + geom_boxplot(mapping = aes(x = subMonth, y = diffDate)) + xlab("Month") + ylab("Weeks between Submission and Determination") + ggtitle("Time Taken for Determination")
+```
+
