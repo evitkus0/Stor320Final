@@ -1,0 +1,110 @@
+---
+title: "Intro Data Exploration Final STOR 320"
+Name: Eric Zhu
+output: html_notebook
+---
+
+
+ 
+
+```{r}
+library(tidyverse)
+```
+```{r}
+DATA1=as.tibble(read.csv("h1data.csv"))
+names(DATA1)
+
+
+```
+```{r}
+Undergrads <- filter(DATA1,PRIMARY_EDUCATION_LEVEL == "Bachelor's")
+hourlyUndergrads <- filter(Undergrads, PWD_UNIT_OF_PAY == "Hour")
+```
+
+```{r}
+sorted <- DATA1[order(DATA1$SUGGESTED._SOC_CODE) ,]
+Industry<-mutate(sorted, industry = substr(sorted$SUGGESTED._SOC_CODE, start =1, stop = 2) )
+
+Industry<-mutate(Industry, subIndustry = substr(sorted$SUGGESTED._SOC_CODE, start =1, stop = 4) )
+
+Industry <- select(Industry, industry, subIndustry, PWD_UNIT_OF_PAY, PWD_WAGE_RATE,SUGGESTED._SOC_CODE,SUGGESTED_SOC_TITLE)
+```
+
+```{r}
+groupedIndustry <- group_by(Industry, industry)
+groupedSubIndustry <- group_by(Industry, subIndustry)
+
+countPerIndustry <- tally(groupedIndustry) 
+countPerIndustry <- countPerIndustry[order(countPerIndustry$n), ]
+
+conicalNames <- data.frame(IndustryName = c("Computer and Mathematical Occupations", "Life, Physical, and Social Science Occupations","Educational Instruction and Library Occupations", "Business and Financial Operations Occupations","Architecture and Engineering Occupations","Healthcare Practitioners and Technical Occupations","Management Occupations","Arts, Design, Entertainment, Sports, and Media Occupations","Community and Social Service Occupations","Legal Occupations","Sales and Related Occupations","Office and Administrative Support Occupations"), industry = c(15,19,25,13,17,29,11,27,21,23,41,43))
+
+
+
+countPerIndustry <- merge(countPerIndustry, conicalNames, by = "industry", all = TRUE)
+
+
+
+
+
+
+summarize(groupedSubIndustry, mean_Salary = mean(PWD_WAGE_RATE, na.rm = TRUE))
+
+```
+
+```{r}
+meanIndustryWage <- summarize(groupedIndustry, mean_Salary = mean(PWD_WAGE_RATE, na.rm = TRUE) )
+
+meanIndustryWage <- merge(meanIndustryWage, countPerIndustry, by = "industry", all= TRUE)
+
+```
+
+```{r}
+
+salbyindustry <- ggplot(data=subset(meanIndustryWage, !is.na(meanIndustryWage$IndustryName)),
+       mapping=aes(x=reorder(IndustryName,  mean_Salary), y=mean_Salary),
+       na.rm=TRUE) +
+  coord_flip() + 
+  geom_col() +
+  geom_text(aes(label=sprintf("%0.2f", round(mean_Salary, digits = 2))), position=position_dodge(width=.5), vjust= .5, hjust = 2) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  labs(title = "Mean Salary by Industry Type",
+       y = "Mean Salary (dollars)", 
+       x = "Industry Name")
+
+salbyindustry
+```
+
+```{r}
+
+df <- subset(meanIndustryWage, !is.na(meanIndustryWage$IndustryName))
+
+df <- df %>% 
+  arrange(desc(n)) %>%
+  slice(1:5) %>%
+  select(n, IndustryName)
+
+
+other <-  df %>% 
+  arrange(desc(n)) %>%
+  slice(6:nrow(df)) 
+
+other <- other %>% 
+  summarise(n=sum(n),
+            IndustryName='Other')
+
+final <- rbind(df, other)
+
+
+ggplot(final, aes(x = "", y = n, fill = IndustryName)) +
+  geom_text(aes(label= as.character(n))) +
+  geom_col(width = 1) +
+  coord_polar("y", direction = -1) 
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
