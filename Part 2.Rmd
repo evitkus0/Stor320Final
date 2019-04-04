@@ -37,21 +37,21 @@ finalP$Determin_Date <- as.Date(finalP$Determin_Date, format = c("%m/%d/%Y"))
 ```
 
 ```{r}
-ggplot(finalP) + geom_bar(mapping = aes(format(finalP$Submit_Date,"%m"), na.rm = T), na.rm = T)
-ggplot(finalP) + geom_bar(mapping = aes(format(finalP$Determin_Date,"%m"), na.rm = T))
-
-head(finalP)
+finalP2 <- subset(finalP, !is.na(finalP$Submit_Date))
+finalP3 <- subset(finalP, !is.na(finalP$Determin_Date))
+ggplot(finalP2) + geom_bar(mapping = aes(format(finalP2$Submit_Date,"%m"))) + xlab("Date") + ylab("Applications Submitted") + ggtitle("Date vs Applications Submitted")
+ggplot(finalP3) + geom_bar(mapping = aes(format(finalP3$Determin_Date,"%m"))) + xlab("Date") + ylab("Applications Determined") + ggtitle("Date vs Applications Determined")
 ```
 
 
 
 ```{r}
 salD <- finalP %>%  group_by(SUPERVISE_OTHER_EMP) %>%  summarize(sal = mean(PWD_WAGE_RATE, na.rm = TRUE))
-ggplot(data = salD, mapping = aes(x = SUPERVISE_OTHER_EMP, y = sal)) +  geom_col()
+ggplot(data = salD, mapping = aes(x = SUPERVISE_OTHER_EMP, y = sal)) +  geom_col() + xlab("Supervisor") + ylab("Mean Salary") + ggtitle("Salary vs Superviser Status")
 ```
 ```{r}
 salD <- finalP %>%  group_by(SUPERVISE_HOW_MANY) %>%  summarize(sal = mean(PWD_WAGE_RATE, na.rm = TRUE))
 ggplot(data = salD, mapping = aes(x = SUPERVISE_HOW_MANY, y = sal)) +  geom_col()
-ggplot(data = finalP, mapping = aes(x = SUPERVISE_HOW_MANY, y = PWD_WAGE_RATE)) +  geom_point() +  geom_smooth(se = TRUE, method = "lm") + xlab("Employees Supervised") + ylab("Mean Salary") + ggtitle("Salary vs Number of Employees Supervised") +xlim(0, 375)+ylim(0, 300000)
+ggplot(data = finalP, mapping = aes(x = SUPERVISE_HOW_MANY, y = PWD_WAGE_RATE)) +  geom_point() +  geom_smooth(se = TRUE, method = "lm") + xlab("Employees Supervised") + ylab("Mean Salary") + ggtitle("Salary vs Number of Employees Supervised") +xlim(0, 300)+ylim(0, 300000)
 ```
 
