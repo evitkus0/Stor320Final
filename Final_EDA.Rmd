@@ -38,7 +38,7 @@ library(fiftystater)
 ###Q1: WRITE_QUESTION_HERE
 
 ```{r}
-data <- read_csv("PWD_Disclosure_Data_FY2018_EOY.csv")
+data <- read_csv("h1data.csv")
 ```
 
 
@@ -75,7 +75,7 @@ count$PRIMARY_WORKSITE_STATE <- tolower(count$PRIMARY_WORKSITE_STATE)
 ggplot(count, aes(map_id = PRIMARY_WORKSITE_STATE)) +
 
   geom_map(aes(fill = count), map = fifty_states) +
-  borders("STATE", colour = "white") +
+  borders("state", colour = "white") +
   scale_fill_gradient(low = "#56B1F7", high = "#132B43", guide = "colorbar") +
   expand_limits(x = fifty_states$long, y = fifty_states$lat) +
   coord_map() +
