@@ -1,0 +1,396 @@
+---
+title: "Exploratory Data Analysis"
+author: "STOR 320.(01 OR 02) Group PLACE_GROUP_NUMBER_HERE (Ex: STOR 320.01 Group 12)"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+install.packages("devtools", repos = "http://cran.us.r-project.org")
+
+library(tidyverse)
+library(dplyr)
+library(plyr)
+library(tidyr)
+library(ggplot2)
+library(maps)
+library(mapproj)
+devtools::install_github("wmurphyrd/fiftystater")
+library(fiftystater)
+
+```
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+#Creator: KEVIN LEE
+
+
+
+###Q1: WRITE_QUESTION_HERE
+
+```{r}
+data <- read_csv("PWD_Disclosure_Data_FY2018_EOY.csv")
+```
+
+
+```{r}
+wage_data <- data[!is.na(data$PWD_WAGE_RATE),]
+ddply(wage_data,~PRIMARY_EDUCATION_LEVEL,summarise,mean=mean(PWD_WAGE_RATE),sd=sd(PWD_WAGE_RATE))
+level <- c("None", "High School/GED", "Associate's", "Bachelor's", "Master's", "Doctorate (PhD)", "Other Degree (JD, MD, etc.)")
+ggplot(wage_data, aes(factor(PRIMARY_EDUCATION_LEVEL, levels = level), PWD_WAGE_RATE)) +
+  geom_violin(aes(fill = factor(PRIMARY_EDUCATION_LEVEL))) +
+  ggtitle("Distribution of Wages by Education Level") +
+  xlab("Primary Education Level") +
+  ylab("Prevailing Wage Rate") +
+  labs(fill = "Primary Education Level") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+
+ggplot(wage_data, aes(factor(PRIMARY_EDUCATION_LEVEL, levels = level), PWD_WAGE_RATE)) +
+  stat_summary(fun.y="mean", geom="bar", fill = "#20456b") +
+  ggtitle("Mean Wages by Education Level") +
+  xlab("Primary Education Level") +
+  ylab("Prevailing Wage Rate") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+###Q2: WRITE_QUESTION_HERE
+
+```{r}
+count <- aggregate(cbind(count = VISA_CLASS) ~ PRIMARY_WORKSITE_STATE,
+          data = data,
+          FUN = function(x){NROW(x)})
+count <- count[-c(8,35,40,48),]
+count
+count$PRIMARY_WORKSITE_STATE <- tolower(count$PRIMARY_WORKSITE_STATE)
+ggplot(count, aes(map_id = PRIMARY_WORKSITE_STATE)) +
+
+  geom_map(aes(fill = count), map = fifty_states) +
+  borders("STATE", colour = "white") +
+  scale_fill_gradient(low = "#56B1F7", high = "#132B43", guide = "colorbar") +
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) +
+  scale_y_continuous(breaks = NULL) +
+  ggtitle("Number of H1B Visa Holders by State") +
+  labs(x = "", y = "", fill = "Count") +
+  theme(legend.position = "bottom", panel.background = element_blank())
+```
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+#Interpreter: AMAN DALAL
+
+###Q1: WRITE_QUESTION_HERE
+
+```{r}
+h1b_df  <- read_csv("h1pet.csv")
+```
+
+
+```{r}
+h1b <- data.frame(lapply(h1b_df, function(v) {
+  if (is.factor(v)) return(toupper(v))
+  else return(v)
+}))
+
+h1b <- tbl_df(h1b)
+glimpse(h1b)
+
+```
+
+```{r}
+h1b <- h1b %>%
+    separate(WORKSITE, c("CITY", "STATE"), ", ")
+
+h1b$STATE <- factor(h1b$STATE, ordered = TRUE)
+h1b$YEAR <- factor(h1b$YEAR, ordered = TRUE)
+
+glimpse(h1b)
+
+ggplot(subset(h1b, !is.na(CASE_STATUS)), 
+       aes(x = CASE_STATUS, fill = CASE_STATUS)) +
+    geom_bar(stat = "count") +
+    coord_trans(y = "sqrt") +
+    ylab("No. of Applications") +
+    theme(legend.position = c(0.9, 0.9), 
+          legend.title = element_text("Case Status"), 
+          legend.key.size = unit(0.3, "cm"),
+          axis.text.x=element_text(angle = -10, hjust = 0, size = rel(1))) +
+    ggtitle("Distribution of H1B visa case status")
+
+
+certified_h1b <- h1b %>%
+    filter(CASE_STATUS == "CERTIFIED")
+
+```
+
+```{r}
+
+top_N_employers <- function(num_emp) {
+    certified_h1b %>%
+        group_by(EMPLOYER_NAME) %>%
+        dplyr::summarise(num_apps = n()) %>%
+        arrange(desc(num_apps)) %>%
+        slice(1:num_emp)
+}
+
+ggplot(top_N_employers(10), 
+       aes(x = reorder(EMPLOYER_NAME, num_apps), y = num_apps)) +
+    geom_bar(stat = "identity", alpha = 0.9, fill = "sky blue", width = 0.7) +
+    coord_flip() +
+    scale_y_continuous(limits = c(0, 50000), breaks = seq(0, 50000, 10000)) +
+
+    geom_text(aes(label = num_apps), hjust = -0.2, size = 2) +
+    ggtitle("Top 10 Employers with most applications") +
+    theme(plot.title = element_text(size = rel(1)),
+          axis.text.y = element_text(size = rel(0.8))) +
+    labs(x = "Employer Name", y = "No. of Applications")
+```
+
+###Q2: What range of prevailing wages are expected of the companies that recruit the most H1B visa workers?
+
+```{r}
+top_10_employers <- certified_h1b %>%
+        group_by(EMPLOYER_NAME) %>%
+        dplyr::summarise(num_apps = n()) %>%
+        arrange(desc(num_apps)) %>%
+        slice(1:10) %>%
+        select(EMPLOYER_NAME)
+
+employers_boxplot_df <- certified_h1b %>%
+    filter(EMPLOYER_NAME %in% top_10_employers$EMPLOYER_NAME)
+
+
+ggplot(employers_boxplot_df, aes(y = PREVAILING_WAGE, x = EMPLOYER_NAME, 
+                                 fill = EMPLOYER_NAME, notch = TRUE, notchwidth = .3)) + 
+      geom_boxplot(notch = TRUE) + 
+      scale_y_continuous(limits = c(0, 150000), 
+                         breaks = seq(0, 150000, 10000)) + 
+      ggtitle("Prevailing Wages for H1B cases in top 10 companies")+
+      theme(
+            plot.title = element_text(size = rel(1.3)),
+            panel.background = element_rect(fill = '#f0f0f0'),
+            axis.text.x=element_blank(),
+            legend.position = "bottom", 
+  
+            legend.title = element_text(size = rel(0.7)),
+            legend.text = element_text(size = rel(0.4)), 
+            panel.grid.major = element_line(colour = '#f0f0f0'),
+            panel.grid.major.x = element_line(linetype = 'blank'),
+            panel.grid.minor = element_line(linetype = 'blank')  
+      )
+```
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+#Orator: ERIC ZHU
+
+###Q1: WRITE_QUESTION_HERE
+
+```{r}
+DATA1=as.tibble(read.csv("PWD_Disclosure_Data_FY2018_EOY.csv"))
+names(DATA1)
+```
+
+
+```{r}
+Undergrads <- filter(DATA1,PRIMARY_EDUCATION_LEVEL == "Bachelor's")
+hourlyUndergrads <- filter(Undergrads, PWD_UNIT_OF_PAY == "Hour")
+```
+
+```{r}
+sorted <- DATA1[order(DATA1$SUGGESTED._SOC_CODE) ,]
+Industry<-mutate(sorted, industry = substr(sorted$SUGGESTED._SOC_CODE, start =1, stop = 2) )
+Industry<-mutate(Industry, subIndustry = substr(sorted$SUGGESTED._SOC_CODE, start =1, stop = 4) )
+Industry <- select(Industry, industry, subIndustry, PWD_UNIT_OF_PAY, PWD_WAGE_RATE,SUGGESTED._SOC_CODE,SUGGESTED_SOC_TITLE)
+```
+
+```{r}
+groupedIndustry <- group_by(Industry, industry)
+groupedSubIndustry <- group_by(Industry, subIndustry)
+countPerIndustry <- tally(groupedIndustry) 
+countPerIndustry <- countPerIndustry[order(countPerIndustry$n), ]
+conicalNames <- data.frame(IndustryName = c("Computer and Mathematical Occupations", "Life, Physical, and Social Science Occupations","Educational Instruction and Library Occupations", "Business and Financial Operations Occupations","Architecture and Engineering Occupations","Healthcare Practitioners and Technical Occupations","Management Occupations","Arts, Design, Entertainment, Sports, and Media Occupations","Community and Social Service Occupations","Legal Occupations","Sales and Related Occupations","Office and Administrative Support Occupations"), industry = c(15,19,25,13,17,29,11,27,21,23,41,43))
+countPerIndustry <- merge(countPerIndustry, conicalNames, by = "industry", all = TRUE)
+summarize(groupedSubIndustry, mean_Salary = mean(PWD_WAGE_RATE, na.rm = TRUE))
+```
+
+```{r}
+meanIndustryWage <- summarize(groupedIndustry, mean_Salary = mean(PWD_WAGE_RATE, na.rm = TRUE) )
+meanIndustryWage <- merge(meanIndustryWage, countPerIndustry, by = "industry", all= TRUE)
+```
+
+```{r}
+salbyindustry <- ggplot(data=subset(meanIndustryWage, !is.na(meanIndustryWage$IndustryName)),
+       mapping=aes(x=reorder(IndustryName,  mean_Salary), y=mean_Salary),
+       na.rm=TRUE) +
+  coord_flip() +
+  geom_col() +
+  geom_text(aes(label=sprintf("%0.2f", round(mean_Salary, digits = 2))), position=position_dodge(width=.5), vjust= .5, hjust = 2) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Mean Salary by Industry Type",
+       y = "Mean Salary (dollars)",
+       x = "Industry Name")
+salbyindustry
+```
+
+```{r}
+df <- subset(meanIndustryWage, !is.na(meanIndustryWage$IndustryName))
+df <- df %>%
+  arrange(desc(n)) %>%
+  slice(1:5) %>%
+  select(n, IndustryName)
+other <-  df %>%
+  arrange(desc(n)) %>%
+  slice(6:nrow(df))
+other <- other %>%
+  summarise(n=sum(n),
+            IndustryName='Other')
+final <- rbind(df, other)
+ggplot(final, aes(x = "", y = n, fill = IndustryName)) +
+  geom_text(aes(label= as.character(n))) +
+  geom_col(width = 1) +
+  coord_polar("y", direction = -1)
+```
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+
+
+#Deliverer: EVAN VIKTUS
+
+###Q1: WRITE_QUESTION_HERE
+
+```{r}
+library(rvest)
+library(lubridate)
+finalP = read_csv("PWD_Disclosure_Data_FY2018_EOY.csv")
+```
+
+```{r}
+finalP <- separate(finalP,SUBMIT_DATE,into=c("Submit_Date", "Submit_Time"),sep=" ")
+finalP <- separate(finalP,DETERMINATION_DATE,into=c("Determin_Date", "Determin_Time"),sep=" ")
+finalP$Submit_Date <- as.Date(finalP$Submit_Date, format = c("%m/%d/%Y"))
+finalP$Determin_Date <- as.Date(finalP$Determin_Date, format = c("%m/%d/%Y"))
+```
+
+```{r}
+finalP2 <- subset(finalP, !is.na(finalP$Submit_Date))
+finalP3 <- subset(finalP, !is.na(finalP$Determin_Date))
+ggplot(finalP2) + geom_bar(mapping = aes(format(finalP2$Submit_Date,"%m"))) + xlab("Date") + ylab("Applications Submitted") + ggtitle("Date vs Applications Submitted")
+ggplot(finalP3) + geom_bar(mapping = aes(format(finalP3$Determin_Date,"%m"))) + xlab("Date") + ylab("Applications Determined") + ggtitle("Date vs Applications Determined")
+```
+
+###Q2: WRITE_QUESTION_HERE
+
+```{r}
+salD <- ddply(finalP,~SUPERVISE_OTHER_EMP,summarise, sal = mean(PWD_WAGE_RATE, na.rm = TRUE))
+ggplot(data = salD, mapping = aes(x = SUPERVISE_OTHER_EMP, y = sal)) +  geom_col() + xlab("Supervisor") + ylab("Mean Salary") + ggtitle("Salary vs Superviser Status")
+```
+
+
+
+```{r}
+salD <- ddply(finalP,~SUPERVISE_HOW_MANY,summarise, sal = mean(PWD_WAGE_RATE, na.rm = TRUE))
+ggplot(data = salD, mapping = aes(x = SUPERVISE_HOW_MANY, y = sal)) +  geom_col()
+ggplot(data = finalP, mapping = aes(x = SUPERVISE_HOW_MANY, y = PWD_WAGE_RATE)) +  geom_point() +  geom_smooth(se = TRUE, method = "lm") + xlab("Employees Supervised") + ylab("Mean Salary") + ggtitle("Salary vs Number of Employees Supervised") +xlim(0, 300)+ylim(0, 300000)
+```
+
+
+# Follow-up Questions
+
+### New Questions Based Off Initial Investigation
+
+- Q1: Does the base salary of the job listing for the H1B visa application affect the chances of the visa being certified or          denied? (Aman)
+- Q2: What is the relationship between occupation type and the state that a visa is granted in? (Kevin)
+- Q3: Does the average length of time between determination date and submission date change depending on the initial submission       month?  Is the difference more strongly related to a different variable? (Evan)
+- Q4: What is the highest paying industry that also takes the the most H1-Bs?(Eric)
+
+### Investigation of Follow-up Questions
+
+GIVE WHAT 2 QUESTIONS YOU ATTEMPTED TO INVESTIGATE FURTHER IN COMPLETE SENTENCES (*Example:* Our group decided to investigate Q2 and Q4 in further detail.)
+
+SHOW AT LEAST 2 TABLES OR FIGURES BELOW THAT EXPLORE ANSWERS FOR THE QUESTIONS YOU ARE INVESTIGATING FURTHER.
+
+```{r}
+finalP$diffDate = difftime(finalP$Determin_Date,finalP$Submit_Date,units='weeks')
+finalP4 <- subset(finalP, !is.na(finalP$diffDate))
+finalP4 <- subset(finalP, !is.na(finalP$Submit_Date))
+finalP4$subMonth = format(finalP2$Submit_Date,"%m")
+ggplot(finalP4) + geom_boxplot(mapping = aes(x = subMonth, y = diffDate)) + xlab("Month") + ylab("Weeks between Submission and Determination") + ggtitle("Time Taken for Determination")
+```
+
+
+```{r}
+certified_denied_h1b <- h1b %>%
+    filter(CASE_STATUS == "CERTIFIED" | CASE_STATUS == "DENIED")
+
+# Boxplot of prevailing wage in these two categories
+ggplot(certified_denied_h1b, aes(y = PREVAILING_WAGE, x = CASE_STATUS, 
+                                 fill = CASE_STATUS, notch = TRUE, 
+                                 notchwidth = .3)) + 
+      geom_boxplot(notch = TRUE) + 
+      scale_fill_manual(values = c("#29a329", "#ea4b1f"))+
+      scale_y_continuous(limits = c(0, 150000), 
+                         breaks = seq(0, 150000, 10000)) + 
+      ggtitle("Wages for certified & denied H1B cases")+
+      theme(
+            plot.title = element_text(size = rel(1.3)),
+            panel.background = element_rect(fill = 'light gray'),
+            panel.grid.major = element_line(colour = '#f0f0f0'),
+            panel.grid.major.x = element_line(linetype = 'blank'),
+            panel.grid.minor = element_line(linetype = 'blank')
+      )
+
+```
+
+
+
+
+#Summary
+
+Intial Investigation
+
+The initial investigation informed us about the salary of H1B immigrants based off of education, industry, supervisor status, and pay.  We also investigated to see when H1B immigrants were most likely to apply and be determined.  One thing that surprised us about our investigation is the the more people an immigrant supervised, the lower their expected salary was. For industry analysis, it was important to factorize the different industries. Initial data cleaning occured to pull large categories from the SOC (Standard Occupation Classification) codes provided in the dataset. The first two digits of the SOC code provided an umbrella industry and after the data was grouped by industry the statistics of the industry were analyzed. The mean salary and number of H1-B visas given per industry were discovered. Investigating the data to find companies that employ the most H1B workers revealed that consulting firms and technology consulting firm employ the majority of H1B workers. Analyzing the prevailing wages of the top ten companies who hire the most H1B visa workers revealed interesting information. Microsoft, one of the biggest tech companies, has the highest average wage for employees with certified H1B. Big consulting firms such as Accenture and Deloitte also tend to hire many foreign workers and offer them good salaries. 
+
+Follow Up Investigation
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
