@@ -1,0 +1,165 @@
+---
+title: "Final Model"
+author: "STOR 320.01 Group 21"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages("devtools", repos = "http://cran.us.r-project.org")
+library(tidyverse)
+library(dplyr)
+library(plyr)
+library(tidyr)
+library(ggplot2)
+library(maps)
+library(mapproj)
+devtools::install_github("wmurphyrd/fiftystater")
+library(fiftystater)
+library(randomForest) 
+library(ranger)
+library(readr)
+```
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+#Creator: Evan Vitkus
+
+
+###Q1: How does level of education affect pay for H1B immigrant workers?
+
+```{r}
+dataOrg <- read_csv("D:/Document/2018-2019/Stor320/Final Project/PWD_Disclosure_Data_FY2018_EOY.csv")
+```
+ Make dataset
+```{r}
+dataCleanModel <- dataOrg %>% select(`EMPLOYER _CITY`,`EMPLOYER _STATE`,`EMPLOYER _COUNTRY`,JOB_TITLE,WORK_HOUR_NUM_BASIC,WORK_HOUR_NUM_OVERTIME, TRAVEL_REQUIRED,PRIMARY_EDUCATION_LEVEL,MAJOR,SECOND_DIPLOMA,SECOND_DIPLOMA_MAJOR,TRAINING_REQUIRED,NUMBER_OF_MONTHS_TRAINING,EMP_EXPERIENCE_REQUIRED,EMP_EXPERIENCE_MONTHS,PWD_WAGE_RATE)
+
+dataCleanModel <- dataCleanModel %>% select(-SECOND_DIPLOMA_MAJOR, -WORK_HOUR_NUM_BASIC, -WORK_HOUR_NUM_OVERTIME)
+dataCleanModel <- dataCleanModel %>% select(-MAJOR)
+
+dataCleanModel=dataCleanModel %>% mutate_if(is.character, as.factor)
+head(dataCleanModel )
+
+```
+Clean dataset
+```{r}
+dataCleanModel = dataCleanModel %>% drop_na(PWD_WAGE_RATE)
+dataCleanModel$NUMBER_OF_MONTHS_TRAINING[is.na(dataCleanModel$NUMBER_OF_MONTHS_TRAINING)] <- 0
+dataCleanModel$EMP_EXPERIENCE_MONTHS[is.na(dataCleanModel$EMP_EXPERIENCE_MONTHS)] <- 0
+dataCleanModel$EMP_EXPERIENCE_MONTHS[is.na(dataCleanModel$EMP_EXPERIENCE_MONTHS)] <- 0
+dataCleanModel = dataCleanModel %>% drop_na()
+dataCleanModel = dataCleanModel %>% dplyr::rename(EMPLOYER_CITY = `EMPLOYER _CITY`, EMPLOYER_STATE = `EMPLOYER _STATE`, EMPLOYER_COUNTRY = `EMPLOYER _COUNTRY`)
+dataCleanModel <- tibble::rowid_to_column(dataCleanModel, "ID")
+head(dataCleanModel)
+```
+
+
+Make training and testing dataset
+```{r}
+smp_size <- floor(0.75 * nrow(dataCleanModel))
+
+## set the seed to make your partition reproducible
+set.seed(123)
+train_ind <- sample(seq_len(nrow(dataCleanModel)), size = smp_size)
+
+train <- dataCleanModel[train_ind, ]
+test <- dataCleanModel[-train_ind, ]
+
+head(train)
+```
+```{r}
+#randModel = randomForest(formula = PWD_WAGE_RATE ~ ., data = train, num.trees = 5, na.action = na.exclude)
+
+#p<-predict(rf,test)
+```
+
+```{r}
+
+```
+
+run model and find predictions
+```{r}
+rf = ranger(formula = PWD_WAGE_RATE ~ .-ID, data = train, num.trees = 500, importance = "impurity", respect.unordered.factors = "ignore",seed = 1,write.forest = TRUE)
+
+p<-predict(rf,test)
+
+head(p$predictions)
+```
+
+print model details and importance factors
+```{r}
+
+#p$prediction.error
+#importance(p)
+
+print(rf)
+#getTerminalNodeIDs(rf,train)
+#varImp(p)
+
+importance(rf)
+
+#head(importance)
+
+#p$variable.importance
+#names(p)
+#df.p <- data.frame(idx=test$idx,
+#                   predictions=p$pred) %>% arrange(idx)
+
+#predictVal = p$predictions
+#finalModel$predval = predictVal
+#finalModel$actualVal = dataCleanModel$PWD_WAGE_RATE
+#head(finalModel)
+#finalPred
+#finalPred <- dataCleanModel %>% mutate(fitted = p$predictions)
+```
+
+Graph predictions and actual
+```{r}
+paco=p$predictions
+
+boxplot(paco)
+
+ggplot(data = dataCleanModel) + geom_boxplot(mapping = aes(x="",y=PWD_WAGE_RATE))
+```
+
+Repeat above steps for a subset of the data
+```{r}
+dataCleanModel2 <- dataCleanModel %>% filter(PWD_WAGE_RATE <= 200000)
+
+smp_size2 <- floor(0.75 * nrow(dataCleanModel2))
+
+## set the seed to make your partition reproducible
+set.seed(123)
+train_ind2 <- sample(seq_len(nrow(dataCleanModel2)), size = smp_size2)
+
+train2 <- dataCleanModel[train_ind2, ]
+test2 <- dataCleanModel[-train_ind2, ]
+
+head(train2)
+
+```
+
+```{r}
+rf2 = ranger(formula = PWD_WAGE_RATE ~ .-ID, data = train2, num.trees = 500, importance = "impurity", respect.unordered.factors = "ignore",seed = 1,write.forest = TRUE)
+
+p2<-predict(rf2,test2)
+
+head(p2$predictions)
+```
+
+```{r}
+print(rf2)
+
+importance(rf2)
+```
+
+```{r}
+paco2=p$predictions
+
+boxplot(paco2)
+
+ggplot(data = dataCleanModel2) + geom_boxplot(mapping = aes(x="",y=PWD_WAGE_RATE))
+```
+
