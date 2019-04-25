@@ -20,6 +20,8 @@ library(fiftystater)
 library(randomForest) 
 library(ranger)
 library(readr)
+library(tibble)
+library(scales)
 ```
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -81,7 +83,7 @@ head(train)
 
 run model and find predictions
 ```{r}
-rf = ranger(formula = PWD_WAGE_RATE ~ .-ID, data = train, num.trees = 500, importance = "impurity", respect.unordered.factors = "ignore",seed = 1,write.forest = TRUE)
+rf = ranger(formula = PWD_WAGE_RATE ~ .-ID, data = train, num.trees = 500, importance = "impurity", respect.unordered.factors = "ignore",write.forest = TRUE)
 
 p<-predict(rf,test)
 
@@ -94,11 +96,11 @@ print model details and importance factors
 #p$prediction.error
 #importance(p)
 
-print(rf)
+#print(rf)
 #getTerminalNodeIDs(rf,train)
 #varImp(p)
 
-importance(rf)
+#importance(rf)
 
 #head(importance)
 
@@ -113,20 +115,63 @@ importance(rf)
 #head(finalModel)
 #finalPred
 #finalPred <- dataCleanModel %>% mutate(fitted = p$predictions)
+
+print(rf)
+names(importance(rf))
+imp = importance(rf)
+imp = as_tibble(imp)
+imp$label = names(importance(rf))
+head(imp)
+ggplot(imp) + geom_col(mapping = aes(x=label, y=value))+
+  ylab("Importance") + 
+  xlab("Parameter")+
+  theme_light()+ggtitle("Importance of Parameters") + 
+  theme_classic()+
+  theme(
+    plot.title = element_text(color="blue", size=14, face="bold.italic"),
+    axis.title.x = element_text(color="blue", size=14, face="bold"),
+    axis.title.y = element_text(color="blue", size=14, face="bold",margin = ggplot2::margin(t = 0, r = 10, b = 0, l = 0)),
+    axis.text.x = element_text(angle=0),
+    axis.ticks.x = element_blank(),
+    )+
+  coord_flip()
 ```
 
 Graph predictions and actual
 ```{r}
 paco=p$predictions
+tibPac <- as_tibble(paco)
 
-boxplot(paco)
+ggplot(tibPac) + geom_boxplot(mapping = aes(y=value))   + 
+  ylab("Wage Rate (Dollars)") + 
+  theme_light()+ggtitle("Predicted Wage Rates") + 
+  theme_classic()+
+  theme(
+    plot.title = element_text(color="blue", size=14, face="bold.italic"),
+    axis.title.x = element_text(color="blue", size=14, face="bold"),
+    axis.title.y = element_text(color="blue", size=14, face="bold",margin = ggplot2::margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    )+
+  scale_y_continuous(breaks=seq(0,300000,100000),labels =  dollar_format())
 
-ggplot(data = dataCleanModel) + geom_boxplot(mapping = aes(x="",y=PWD_WAGE_RATE))
+dataCleanModel %>% filter(PWD_WAGE_RATE<500000) %>% ggplot() + geom_boxplot(mapping = aes(y=PWD_WAGE_RATE))   + 
+  ylab("Wage Rate (Dollars)") + 
+  theme_light()+ggtitle("Actual Wage Rates") + 
+  theme_classic()+
+  theme(
+    plot.title = element_text(color="blue", size=14, face="bold.italic"),
+    axis.title.x = element_text(color="blue", size=14, face="bold"),
+    axis.title.y = element_text(color="blue", size=14, face="bold",margin = ggplot2::margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    )+
+  scale_y_continuous(breaks=seq(0,300000,100000),labels =  dollar_format())
 ```
 
 Repeat above steps for a subset of the data
 ```{r}
-dataCleanModel2 <- dataCleanModel %>% filter(PWD_WAGE_RATE <= 200000)
+dataCleanModel2 <- dataCleanModel %>% filter(PWD_WAGE_RATE <= 500000)
 
 smp_size2 <- floor(0.75 * nrow(dataCleanModel2))
 
@@ -142,7 +187,7 @@ head(train2)
 ```
 
 ```{r}
-rf2 = ranger(formula = PWD_WAGE_RATE ~ .-ID, data = train2, num.trees = 500, importance = "impurity", respect.unordered.factors = "ignore",seed = 1,write.forest = TRUE)
+rf2 = ranger(formula = PWD_WAGE_RATE ~ .-ID, data = train2, num.trees = 500, importance = "impurity", respect.unordered.factors = "ignore",write.forest = TRUE)
 
 p2<-predict(rf2,test2)
 
@@ -151,15 +196,53 @@ head(p2$predictions)
 
 ```{r}
 print(rf2)
-
-importance(rf2)
+names(importance(rf2))
+imp2 = importance(rf2)
+imp2 = as_tibble(imp2)
+imp2$label = names(importance(rf2))
+#head(imp2)
+ggplot(imp2) + geom_col(mapping = aes(x=label, y=value))+
+  ylab("Importance") + 
+  xlab("Parameter")+
+  theme_light()+ggtitle("Importance of Parameters") + 
+  theme_classic()+
+  theme(
+    plot.title = element_text(color="blue", size=14, face="bold.italic"),
+    axis.title.x = element_text(color="blue", size=14, face="bold"),
+    axis.title.y = element_text(color="blue", size=14, face="bold",margin = ggplot2::margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.text.x = element_text(angle=0),
+    axis.ticks.x = element_blank(),
+    )+
+  coord_flip()
 ```
 
 ```{r}
 paco2=p$predictions
+tibPac2 <- as_tibble(paco2)
+ggplot(tibPac2) + geom_boxplot(mapping = aes(y=value))   + 
+  ylab("Wage Rate (Dollars)") + 
+  theme_light()+ggtitle("Predicted Wage Rates") + 
+  theme_classic()+
+  theme(
+    plot.title = element_text(color="blue", size=14, face="bold.italic"),
+    axis.title.x = element_text(color="blue", size=14, face="bold"),
+    axis.title.y = element_text(color="blue", size=14, face="bold",margin = ggplot2::margin(t = 0, r = 10, b = 0, l = 0)),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    )+
+  scale_y_continuous(breaks=seq(0,300000,100000),labels =  dollar_format())
 
-boxplot(paco2)
-
-ggplot(data = dataCleanModel2) + geom_boxplot(mapping = aes(x="",y=PWD_WAGE_RATE))
+dataCleanModel2 %>% filter(PWD_WAGE_RATE<500000) %>% ggplot() + geom_boxplot(mapping = aes(y=PWD_WAGE_RATE))   + 
+  ylab("Wage Rate (Dollars)") + 
+  theme_light()+ggtitle("Actual Wage Rates") + 
+  theme_classic()+
+  theme(
+    plot.title = element_text(color="blue", size=14, face="bold.italic"),
+    axis.title.x = element_text(color="blue", size=14, face="bold"),
+    axis.title.y = element_text(color="blue", size=14, face="bold",margin = ggplot2::margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    )+
+  scale_y_continuous(breaks=seq(0,300000,100000),labels =  dollar_format())
 ```
 
