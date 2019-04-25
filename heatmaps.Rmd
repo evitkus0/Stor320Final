@@ -14,14 +14,9 @@ library(fiftystater)
 library(ggrepel)
 ```
 
-## R Markdown
-
 ```{r summary, echo=F}
 setwd("/Users/kevinchen/Documents/stor320")
 data <- read.csv("h1data.csv", as.is=T)
-```
-
-```{r, echo=F}
 states <- map_data("state")
 counties <- map_data("county")
 
@@ -132,7 +127,7 @@ fl_map <- fl_base +
       drop_axes
 
 
-ca_map + geom_point(data = ca_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = ca_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in California", subtitle = "Cities with population >250,000 labeled")
-tx_map + geom_point(data = tx_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = tx_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in Texas", subtitle = "Cities with population >250,000 labeled")
-fl_map + geom_point(data = fl_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = fl_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in Florida", subtitle = "Cities with population >250,000 labeled")
+heatmap_ca <- ca_map + geom_point(data = ca_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = ca_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in California", subtitle = "Cities with population >250,000 labeled")
+heatmap_tx <- tx_map + geom_point(data = tx_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = tx_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in Texas", subtitle = "Cities with population >250,000 labeled")
+heatmap_fl <- fl_map + geom_point(data = fl_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = fl_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in Florida", subtitle = "Cities with population >250,000 labeled")
 ```
