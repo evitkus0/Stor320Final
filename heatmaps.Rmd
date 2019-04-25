@@ -1,0 +1,138 @@
+---
+title: "heatmaps"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(plyr)
+library(tidyr)
+library(ggplot2)
+library(mapproj)
+library(fiftystater)
+library(ggrepel)
+```
+
+## R Markdown
+
+```{r summary, echo=F}
+setwd("/Users/kevinchen/Documents/stor320")
+data <- read.csv("h1data.csv", as.is=T)
+```
+
+```{r, echo=F}
+states <- map_data("state")
+counties <- map_data("county")
+
+ca_df <- subset(states, region == "california")
+ca_county <- subset(counties, region == "california")
+ca_city <- subset(us.cities, country.etc == "CA" & pop > 250000)
+ca_city$name[ca_city$name == "Anaheim CA"] <- "Anaheim"
+ca_city$name[ca_city$name == "Bakersfield CA"] <- "Bakersfield"
+ca_city$name[ca_city$name == "Fresno CA"] <- "Fresno"
+ca_city$name[ca_city$name == "Long Beach CA"] <- "Long Beach"
+ca_city$name[ca_city$name == "Los Angeles CA"] <- "Los Angeles"
+ca_city$name[ca_city$name == "Oakland CA"] <- "Oakland"
+ca_city$name[ca_city$name == "Riverside CA"] <- "Riverside"
+ca_city$name[ca_city$name == "Sacramento CA"] <- "Sacramento"
+ca_city$name[ca_city$name == "San Diego CA"] <- "San Diego"
+ca_city$name[ca_city$name == "San Francisco CA"] <- "San Francisco"
+ca_city$name[ca_city$name == "San Jose CA"] <- "San Jose"
+ca_city$name[ca_city$name == "Santa Ana CA"] <- "Santa Ana"
+ca_city$name[ca_city$name == "Stockton CA"] <- "Stockton"
+
+ca_base <- ggplot(data = ca_df, mapping = aes(x = long, y = lat, group = group)) + 
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill = "lightgray")
+
+
+tx_df <- subset(states, region == "texas")
+tx_county <- subset(counties, region == "texas")
+tx_city <- subset(us.cities, country.etc == "TX" & pop > 250000)
+tx_city$name[tx_city$name == "Arlington TX"] <- "Arlington"
+tx_city$name[tx_city$name == "Austin TX"] <- "Austin"
+tx_city$name[tx_city$name == "Corpus Christi TX"] <- "Corpus Christi"
+tx_city$name[tx_city$name == "Dallas TX"] <- "Dallas"
+tx_city$name[tx_city$name == "El Paso TX"] <- "El Paso"
+tx_city$name[tx_city$name == "Fort Worth TX"] <- "Fort Worth"
+tx_city$name[tx_city$name == "Houston TX"] <- "Houston"
+tx_city$name[tx_city$name == "Plano TX"] <- "Plano"
+tx_city$name[tx_city$name == "San Antonio TX"] <- "San Antonio"
+
+tx_base <- ggplot(data = tx_df, mapping = aes(x = long, y = lat, group = group)) +
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill = "lightgray")
+
+fl_df <- subset(states, region == "florida")
+fl_county <- subset(counties, region == "florida")
+fl_city <- subset(us.cities, country.etc == "FL" & pop > 250000 | name == "Orlando FL")
+fl_city$name[fl_city$name == "Jacksonville FL"] <- "Jacksonville"
+fl_city$name[fl_city$name == "Miami FL"] <- "Miami"
+fl_city$name[fl_city$name == "Orlando FL"] <- "Orlando"
+fl_city$name[fl_city$name == "Tampa FL"] <- "Tampa"
+
+fl_base <- ggplot(data = fl_df, mapping = aes(x = long, y = lat, group = group)) +
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill = "lightgray")
+
+drop_axes <- theme(
+  axis.text = element_blank(),
+  axis.line = element_blank(),
+  axis.ticks = element_blank(),
+  panel.border = element_blank(),
+  panel.grid = element_blank(),
+  axis.title = element_blank()
+  )
+
+cali <- data[grep("CALIFORNIA", data$PRIMARY_WORKSITE_STATE),]
+cali$PRIMARY_WORKSITE_COUNTY <- tolower(cali$PRIMARY_WORKSITE_COUNTY)
+cali_count <- aggregate(cbind(number_of_visas = VISA_CLASS) ~ PRIMARY_WORKSITE_COUNTY, 
+          data = cali, 
+          FUN = function(x){NROW(x)})
+names(cali_count)[names(cali_count)=="PRIMARY_WORKSITE_COUNTY"] <- "subregion"
+ca_final <- inner_join(ca_county, cali_count, by = "subregion")
+ca_map <- ca_base + 
+      geom_polygon(data = ca_final, aes(fill = number_of_visas), color = "white", size = .1) +
+      geom_polygon(data = ca_county, fill = NA, color = "white", size = .1) +
+      geom_polygon(color = "black", fill = NA) +
+      scale_fill_gradient(low = "#56B1F7", high = "#132B43", guide = "colorbar") +
+      theme_bw() +
+      drop_axes
+
+tex <- data[grep("TEXAS", data$PRIMARY_WORKSITE_STATE),]
+tex$PRIMARY_WORKSITE_COUNTY <- tolower(tex$PRIMARY_WORKSITE_COUNTY)
+tex_count <- aggregate(cbind(number_of_visas = VISA_CLASS) ~ PRIMARY_WORKSITE_COUNTY, 
+          data = tex, 
+          FUN = function(x){NROW(x)})
+names(tex_count)[names(tex_count)=="PRIMARY_WORKSITE_COUNTY"] <- "subregion"
+tx_final <- inner_join(tx_county, tex_count, by = "subregion")
+tx_map <- tx_base + 
+      geom_polygon(data = tx_final, aes(fill = number_of_visas), color = "white", size = .1) +
+      geom_polygon(data = tx_county, fill = NA, color = "white", size = .1) +
+      geom_polygon(color = "black", fill = NA) +
+      scale_fill_gradient(low = "#56B1F7", high = "#132B43", guide = "colorbar") +
+      theme_bw() +
+      drop_axes
+
+flo <- data[grep("FLORIDA", data$PRIMARY_WORKSITE_STATE),]
+flo$PRIMARY_WORKSITE_COUNTY <- tolower(flo$PRIMARY_WORKSITE_COUNTY)
+flo$PRIMARY_WORKSITE_COUNTY[flo$PRIMARY_WORKSITE_COUNTY == "miami dade"] <- "miami-dade"
+flo_count <- aggregate(cbind(number_of_visas = VISA_CLASS) ~ PRIMARY_WORKSITE_COUNTY, 
+          data = flo, 
+          FUN = function(x){NROW(x)})
+names(flo_count)[names(flo_count)=="PRIMARY_WORKSITE_COUNTY"] <- "subregion"
+fl_final <- inner_join(fl_county, flo_count, by = "subregion")
+fl_map <- fl_base + 
+      geom_polygon(data = fl_final, aes(fill = number_of_visas), color = "white", size = .1) +
+      geom_polygon(data = fl_county, fill = NA, color = "white", size = .1) +
+      geom_polygon(color = "black", fill = NA) +
+      scale_fill_gradient(low = "#56B1F7", high = "#132B43", guide = "colorbar") +
+      theme_bw() +
+      drop_axes
+
+
+ca_map + geom_point(data = ca_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = ca_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in California", subtitle = "Cities with population >250,000 labeled")
+tx_map + geom_point(data = tx_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = tx_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in Texas", subtitle = "Cities with population >250,000 labeled")
+fl_map + geom_point(data = fl_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = fl_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in Florida", subtitle = "Cities with population >250,000 labeled")
+```
