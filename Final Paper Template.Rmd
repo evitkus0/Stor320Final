@@ -1,0 +1,333 @@
+---
+title: "Final Paper"
+author: "STOR 320.01 Group 21"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(plyr)
+library(tidyr)
+library(ggplot2)
+library(maps)
+library(mapproj)
+devtools::install_github("wmurphyrd/fiftystater")
+library(fiftystater)
+library(randomForest) 
+library(ranger)
+library(readr)
+library(tibble)
+library(scales)
+library(ggrepel)
+devtools::install_github("haozhu233/kableExtra")
+library(knitr)
+library(kableExtra)
+```
+```{r, echo=F, message=FALSE,warning=FALSE}
+dataOrg <- read_csv("D:/Document/2018-2019/Stor320/Final Project/PWD_Disclosure_Data_FY2018_EOY.csv")
+
+dataCleanModel <- dataOrg %>% select(`EMPLOYER _CITY`,`EMPLOYER _STATE`,`EMPLOYER _COUNTRY`,JOB_TITLE,WORK_HOUR_NUM_BASIC,WORK_HOUR_NUM_OVERTIME, TRAVEL_REQUIRED,PRIMARY_EDUCATION_LEVEL,MAJOR,SECOND_DIPLOMA,SECOND_DIPLOMA_MAJOR,TRAINING_REQUIRED,NUMBER_OF_MONTHS_TRAINING,EMP_EXPERIENCE_REQUIRED,EMP_EXPERIENCE_MONTHS,PWD_WAGE_RATE,`SUGGESTED _SOC_CODE`)
+
+dataCleanModel <- dataCleanModel %>% select(-SECOND_DIPLOMA_MAJOR, -WORK_HOUR_NUM_BASIC, -WORK_HOUR_NUM_OVERTIME)
+dataCleanModel <- dataCleanModel %>% select(-MAJOR)
+dataCleanModel = dataCleanModel %>% mutate_if(is.character, as.factor)
+
+dataCleanModel = dataCleanModel %>% drop_na(PWD_WAGE_RATE)
+dataCleanModel$NUMBER_OF_MONTHS_TRAINING[is.na(dataCleanModel$NUMBER_OF_MONTHS_TRAINING)] <- 0
+dataCleanModel$EMP_EXPERIENCE_MONTHS[is.na(dataCleanModel$EMP_EXPERIENCE_MONTHS)] <- 0
+dataCleanModel$EMP_EXPERIENCE_MONTHS[is.na(dataCleanModel$EMP_EXPERIENCE_MONTHS)] <- 0
+dataCleanModel = dataCleanModel %>% drop_na()
+dataCleanModel = dataCleanModel %>% dplyr::rename(SUGGESTED_SOC_CODE = `SUGGESTED _SOC_CODE`, EMPLOYER_CITY = `EMPLOYER _CITY`, EMPLOYER_STATE = `EMPLOYER _STATE`, EMPLOYER_COUNTRY = `EMPLOYER _COUNTRY`)
+dataCleanModel <- tibble::rowid_to_column(dataCleanModel, "ID")
+
+smp_size <- floor(0.75 * nrow(dataCleanModel))
+set.seed(123)
+train_ind <- sample(seq_len(nrow(dataCleanModel)), size = smp_size)
+train <- dataCleanModel[train_ind, ]
+test <- dataCleanModel[-train_ind, ]
+
+rf = ranger(formula = PWD_WAGE_RATE ~ .-ID, data = train, num.trees = 500, importance = "impurity", seed = 1,respect.unordered.factors = "ignore",write.forest = TRUE)
+p<-predict(rf,test)
+
+imp = importance(rf)
+imp = as_tibble(imp)
+imp$label = names(importance(rf))
+#head(imp)
+graph1imp = ggplot(imp) + geom_col(mapping = aes(x=label, y=value))+
+  ylab("Importance") + 
+  xlab("Parameter")+
+  theme_light()+ggtitle("Importance of Parameters") + 
+  theme_classic()+
+  theme(
+    plot.title = element_text(color="blue", size=14, face="bold.italic"),
+    axis.title.x = element_text(color="blue", size=14, face="bold"),
+    axis.title.y = element_text(color="blue", size=14, face="bold",margin = ggplot2::margin(t = 0, r = 10, b = 0, l = 0)),
+    axis.text.x = element_text(angle=0),
+    axis.ticks.x = element_blank()
+    )+
+  coord_flip()
+
+paco=p$predictions
+tibPac <- as_tibble(paco)
+
+graph1pred = ggplot(tibPac) + geom_boxplot(mapping = aes(y=value))   + 
+  ylab("Wage Rate (Dollars)") + 
+  theme_light()+ggtitle("Predicted Wage Rates") + 
+  theme_classic()+
+  theme(
+    plot.title = element_text(color="blue", size=14, face="bold.italic"),
+    axis.title.x = element_text(color="blue", size=14, face="bold"),
+    axis.title.y = element_text(color="blue", size=14, face="bold",margin = ggplot2::margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+    )+
+  scale_y_continuous(breaks=seq(0,300000,100000),labels =  dollar_format())
+
+graph1actual = dataCleanModel %>% filter(PWD_WAGE_RATE<500000) %>% ggplot() + geom_boxplot(mapping = aes(y=PWD_WAGE_RATE))   + 
+  ylab("Wage Rate (Dollars)") + 
+  theme_light()+ggtitle("Actual Wage Rates") + 
+  theme_classic()+
+  theme(
+    plot.title = element_text(color="blue", size=14, face="bold.italic"),
+    axis.title.x = element_text(color="blue", size=14, face="bold"),
+    axis.title.y = element_text(color="blue", size=14, face="bold",margin = ggplot2::margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+    )+
+  scale_y_continuous(breaks=seq(0,300000,100000),labels =  dollar_format())
+```
+
+```{r summary, echo=F}
+data <- read.csv("D:/Document/2018-2019/Stor320/Final Project/h1data.csv", as.is=T)
+data = dplyr::rename(data,VISA_CLASS = `ï..VISA_CLASS`)
+states <- map_data("state")
+counties <- map_data("county")
+ca_df <- subset(states, region == "california")
+ca_county <- subset(counties, region == "california")
+ca_city <- subset(us.cities, country.etc == "CA" & pop > 250000)
+ca_city$name[ca_city$name == "Anaheim CA"] <- "Anaheim"
+ca_city$name[ca_city$name == "Bakersfield CA"] <- "Bakersfield"
+ca_city$name[ca_city$name == "Fresno CA"] <- "Fresno"
+ca_city$name[ca_city$name == "Long Beach CA"] <- "Long Beach"
+ca_city$name[ca_city$name == "Los Angeles CA"] <- "Los Angeles"
+ca_city$name[ca_city$name == "Oakland CA"] <- "Oakland"
+ca_city$name[ca_city$name == "Riverside CA"] <- "Riverside"
+ca_city$name[ca_city$name == "Sacramento CA"] <- "Sacramento"
+ca_city$name[ca_city$name == "San Diego CA"] <- "San Diego"
+ca_city$name[ca_city$name == "San Francisco CA"] <- "San Francisco"
+ca_city$name[ca_city$name == "San Jose CA"] <- "San Jose"
+ca_city$name[ca_city$name == "Santa Ana CA"] <- "Santa Ana"
+ca_city$name[ca_city$name == "Stockton CA"] <- "Stockton"
+ca_base <- ggplot(data = ca_df, mapping = aes(x = long, y = lat, group = group)) + 
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill = "lightgray")
+tx_df <- subset(states, region == "texas")
+tx_county <- subset(counties, region == "texas")
+tx_city <- subset(us.cities, country.etc == "TX" & pop > 250000)
+tx_city$name[tx_city$name == "Arlington TX"] <- "Arlington"
+tx_city$name[tx_city$name == "Austin TX"] <- "Austin"
+tx_city$name[tx_city$name == "Corpus Christi TX"] <- "Corpus Christi"
+tx_city$name[tx_city$name == "Dallas TX"] <- "Dallas"
+tx_city$name[tx_city$name == "El Paso TX"] <- "El Paso"
+tx_city$name[tx_city$name == "Fort Worth TX"] <- "Fort Worth"
+tx_city$name[tx_city$name == "Houston TX"] <- "Houston"
+tx_city$name[tx_city$name == "Plano TX"] <- "Plano"
+tx_city$name[tx_city$name == "San Antonio TX"] <- "San Antonio"
+tx_base <- ggplot(data = tx_df, mapping = aes(x = long, y = lat, group = group)) +
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill = "lightgray")
+fl_df <- subset(states, region == "florida")
+fl_county <- subset(counties, region == "florida")
+fl_city <- subset(us.cities, country.etc == "FL" & pop > 250000 | name == "Orlando FL")
+fl_city$name[fl_city$name == "Jacksonville FL"] <- "Jacksonville"
+fl_city$name[fl_city$name == "Miami FL"] <- "Miami"
+fl_city$name[fl_city$name == "Orlando FL"] <- "Orlando"
+fl_city$name[fl_city$name == "Tampa FL"] <- "Tampa"
+fl_base <- ggplot(data = fl_df, mapping = aes(x = long, y = lat, group = group)) +
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill = "lightgray")
+drop_axes <- theme(
+  axis.text = element_blank(),
+  axis.line = element_blank(),
+  axis.ticks = element_blank(),
+  panel.border = element_blank(),
+  panel.grid = element_blank(),
+  axis.title = element_blank()
+  )
+cali <- data[grep("CALIFORNIA", data$PRIMARY_WORKSITE_STATE),]
+cali$PRIMARY_WORKSITE_COUNTY <- tolower(cali$PRIMARY_WORKSITE_COUNTY)
+cali_count <- aggregate(cbind(number_of_visas = VISA_CLASS) ~ PRIMARY_WORKSITE_COUNTY, 
+          data = cali, 
+          FUN = function(x){NROW(x)})
+names(cali_count)[names(cali_count)=="PRIMARY_WORKSITE_COUNTY"] <- "subregion"
+ca_final <- inner_join(ca_county, cali_count, by = "subregion")
+ca_map <- ca_base + 
+      geom_polygon(data = ca_final, aes(fill = number_of_visas), color = "white", size = .1) +
+      geom_polygon(data = ca_county, fill = NA, color = "white", size = .1) +
+      geom_polygon(color = "black", fill = NA) +
+      scale_fill_gradient(low = "#56B1F7", high = "#132B43", guide = "colorbar") +
+      theme_bw() +
+      drop_axes
+tex <- data[grep("TEXAS", data$PRIMARY_WORKSITE_STATE),]
+tex$PRIMARY_WORKSITE_COUNTY <- tolower(tex$PRIMARY_WORKSITE_COUNTY)
+tex_count <- aggregate(cbind(number_of_visas = VISA_CLASS) ~ PRIMARY_WORKSITE_COUNTY, 
+          data = tex, 
+          FUN = function(x){NROW(x)})
+names(tex_count)[names(tex_count)=="PRIMARY_WORKSITE_COUNTY"] <- "subregion"
+tx_final <- inner_join(tx_county, tex_count, by = "subregion")
+tx_map <- tx_base + 
+      geom_polygon(data = tx_final, aes(fill = number_of_visas), color = "white", size = .1) +
+      geom_polygon(data = tx_county, fill = NA, color = "white", size = .1) +
+      geom_polygon(color = "black", fill = NA) +
+      scale_fill_gradient(low = "#56B1F7", high = "#132B43", guide = "colorbar") +
+      theme_bw() +
+      drop_axes
+flo <- data[grep("FLORIDA", data$PRIMARY_WORKSITE_STATE),]
+flo$PRIMARY_WORKSITE_COUNTY <- tolower(flo$PRIMARY_WORKSITE_COUNTY)
+flo$PRIMARY_WORKSITE_COUNTY[flo$PRIMARY_WORKSITE_COUNTY == "miami dade"] <- "miami-dade"
+flo_count <- aggregate(cbind(number_of_visas = VISA_CLASS) ~ PRIMARY_WORKSITE_COUNTY, 
+          data = flo, 
+          FUN = function(x){NROW(x)})
+names(flo_count)[names(flo_count)=="PRIMARY_WORKSITE_COUNTY"] <- "subregion"
+fl_final <- inner_join(fl_county, flo_count, by = "subregion")
+fl_map <- fl_base + 
+      geom_polygon(data = fl_final, aes(fill = number_of_visas), color = "white", size = .1) +
+      geom_polygon(data = fl_county, fill = NA, color = "white", size = .1) +
+      geom_polygon(color = "black", fill = NA) +
+      scale_fill_gradient(low = "#56B1F7", high = "#132B43", guide = "colorbar") +
+      theme_bw() +
+      drop_axes
+heatmap_ca = ca_map + geom_point(data = ca_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = ca_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in California", subtitle = "Cities with population >250,000 labeled")
+heatmap_tx =  tx_map + geom_point(data = tx_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = tx_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in Texas", subtitle = "Cities with population >250,000 labeled")
+heatmap_fl = fl_map + geom_point(data = fl_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = fl_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in Florida", subtitle = "Cities with population >250,000 labeled")
+```
+```
+
+
+# INTRODUCTION
+
+# DATA
+
+  The H1-B Visa is a high-skilled immigrant work visa in the United States under the Immigrant and Nationality Act which allows US employers to hire foreign-born workers for specialty occupations in the United States. United States Citizenship and Immigration Services (USCIS) receives over 200,000 H1-B visa applications from US Employers and approves approximately 80,000 applications through a randomized algorithm. The application data and approved application data is available for public access on the Department of Labor website under Annual Disclosure Data.
+
+
+  For our project we utilized the Prevailing Wage Program data from the Fiscal Year 2018 so the reporting period was from October 1, 2017 to September 30, 2018. For H1-B applications, the prevailing wage is defined as the average wage paid to similarly employed workers in the particular specialty occupation in the area of intended employment. Since USCIS requires that the hiring of an H1-B foreign worker will not adversely affect the wages or the working conditions of US employees working in the same or similar occupation the employer must prevailing wage determination application as a part of the H1-B application for the future employee. Before processing the H1-B application, USCIS will determine whether the salary assigned by the employer for the H1-B employee meets the minimum pay for workers with similar skills, training, and qualifications in the particular specialty occupation through the prevailing wage determination process. Our data set focuses particularly on the prevailing wage determination process.
+
+
+  Our original data set directly from the DOL website consisted of nearly 57 variables with 149,409 observations. Each observation (row) in this dataset represents a prevailing wage determination application filed by an employer for a particular H1-B candidate. For our first advanced modeling question we thoroughly cleaned the data set in order to focus on 12 variables. Additionally, we removed nearly eight thousand observations with multiple NA fields. The remaining 141,917 observations were divided into a training data set and a test data set. We assigned 106,437 observations to the training set and 35,480 observations to the test set. The following table defines the variables used in our advanced modeling question Q1:
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+wage_data <- data[!is.na(data$PWD_WAGE_RATE),]
+pwdTable1 <- data.frame(
+Field = c(
+"EMPLOYER_CITY",
+"EMPLOYER_STATE",
+"JOB_TITLE",
+"TRAVEL_REQUIRED",
+"PRIMARY EDUCATION LEVEL",
+"SECOND_DIPLOMA",
+"TRAINING_REQUIRED",
+"NUMBER_OF_MONTHS_TRAINING",
+"EMP_EXPERIENCE_REQUIRED",
+"EMP_EXPERIENCE_MONTHS",
+"PWD_WAGE_RATE"
+),
+Description = c(
+"Address information of the employer that is filing the Prevailing Wage Determination Form.",
+"Address information of the employer that is filing the Prevailing Wage Determination Form.",
+"Official title of the employer's job opportunity.",
+"Identifies whether travel is required in order for the duties of the employer's job opportunity to be performed.",
+"Identifies the minimum U.S. diploma or degree required by the employer for the job opportunity. Valid values include "None," "High School/GED," "Associate's," "Bachelor's," "Master's," "Doctorate (PhD)," and "Other degree (JD, MD, etc.)".",
+"Identifies if there is an alternate major(s) and/or field(s) of study required by the employer for the job opportunity.
+Y= Yes; N=No.",
+"Identifies whether the employer is requiring training for the job opportunity. 
+Y = Yes; N = No.",
+"Identifies the number of months required for training.",
+"Identifies whether the employer is requiring employment experience for the job opportunity. Y = Yes; N = No.",
+"Where employment experience is required, identifies the number of months of employment experience the employer is requiring for the job opportunity.",
+"Prevailing wage rate issued by the OFLC National Prevailing Wage Center."
+  )
+)
+
+  kableExtra::kable(pwdTable1) %>%
+  kableExtra::kable_styling("striped", full_width = F) %>%
+  kableExtra::column_spec(1, bold = T, border_right = T)
+```
+
+
+In order to effectively produce an advanced model, an important intermediary step was to thoroughly explore our dataset. We explored the variables in many ways but looking at the distribution of prevailing wages based on education level helped us determine that it was an important variable relationship to explore in our model. Additionally, we examined the spread of H1-B visas throughout the United States in order to determine which states we should further explore in our heatmap analysis. 
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+wage_data <- data[!is.na(data$PWD_WAGE_RATE),]
+ddply(wage_data,~PRIMARY_EDUCATION_LEVEL,summarise,mean=mean(PWD_WAGE_RATE),sd=sd(PWD_WAGE_RATE))
+level <- c("None", "High School/GED", "Associate's", "Bachelor's", "Master's", "Doctorate (PhD)", "Other Degree (JD, MD, etc.)")
+ggplot(wage_data, aes(factor(PRIMARY_EDUCATION_LEVEL, levels = level), PWD_WAGE_RATE)) +
+  geom_violin(aes(fill = factor(PRIMARY_EDUCATION_LEVEL))) +
+  ggtitle("Distribution of Wages by Education Level") +
+  xlab("Primary Education Level") +
+  ylab("Prevailing Wage Rate") +
+  labs(fill = "Primary Education Level") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+count <- aggregate(cbind(count = VISA_CLASS) ~ PRIMARY_WORKSITE_STATE,
+          data = data,
+          FUN = function(x){NROW(x)})
+count <- count[-c(8,35,40,48),]
+
+
+count$PRIMARY_WORKSITE_STATE <- tolower(count$PRIMARY_WORKSITE_STATE)
+ggplot(count, aes(map_id = PRIMARY_WORKSITE_STATE)) +
+  # map points to the fifty_states shape data
+  geom_map(aes(fill = count), map = fifty_states) +
+  borders("state", colour = "white") +
+  scale_fill_gradient(low = "#56B1F7", high = "#132B43", guide = "colorbar") +
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) +
+  scale_y_continuous(breaks = NULL) +
+  ggtitle("Number of H1B Visa Holders by State") +
+  labs(x = "", y = "", fill = "Count") +
+  theme(legend.position = "bottom", panel.background = element_blank())
+```
+
+# RESULTS
+
+  Our first advanced model was to predict salary based on H1-B visas. We chose to pursue a random forest regression. The reason we chose a random forest was for all the benefits of a decision tree without the overfitting problem. A random forest creates some 'k' trees and averages the results across them all. In this model, we created 500 trees. This gave our regression the time it needed to create an accurate model.
+
+  In order to run the random forest, we needed to remove all of the NA and INF values from the dataset. For some parameters, this just involved removing the entire entry. However, others allowed for a more creative approach. For example, the number of months of experience required was set to NA if no months were required, thus we could replace NA's with zero. After this initial data cleansing, we attempted to run the model. Unfortunately, the first attempt failed because the R random forest class can only handle categorical variables with 53 or less unique categories. To avoid this issue, we switched to a ranger model which is a different random forest class. We initially had a poorly performing model so we began tuning hyperparameters. We printed out the importance for each variable and dropped the lowest ones. This gave a more fine-tuned model and allowed us to keep a larger portion of the data due to no longer needing to drop so many data points because of NA's.
+
+```{r, echo=FALSE}
+graph1pred
+graph1actual
+```
+
+  In our final model, we received an R-squared of 0.78. This means that we have accounted for 78% of variation in salary with our model. We also received a RMSE score of 21,406. While this appears poor at first glance, when normalized for the range of the dependent variable, we received a RMSE of 0.024 or 0.071 with the outliers removed. The variables of most importance in our final model are SUGGESTED_SOC_CODE (industry), PRIMARY_EDUCATION_LEVEL (degree level) and EMP_EXPERIENCE_MONTHS (experience required). Another attempt to improve our model was to remove the outlier of a salary of $980,000. No other H1-B visa received a salary over $300,000. This did not show a large increase in RMSE. We attempted to filter the data even further by removing all values greater than $200,000 and we still did not see a large increase in predictive power. We stuck with the original model to keep things simplest
+
+```{r, echo=FALSE}
+graph1imp
+```
+
+  Our second analysis looked to expand on the spatial relationship between H1B visa holders. We created heatmaps of the number of H1B visa holders in the three states with the most overall number of H1B visa holders in the Fiscal Year 2018. Within each state, we divide the H1B visa holders by worksite county and for additional context, we also label the cities with populations of over 250,000. In the heatmaps, counties colored with darker shades of blue have higher numbers of H1B visa holders compared to those colored lighter shades. Gray counties are those that have no H1B visa holders in our dataset.  
+
+  In California, the figures show that the greatest number of H1B visa holders are in Los Angeles, San Francisco, Santa Barbara, and Santa Clara counties. These correspond to the major urban areas in California, which is unsurprising given that immigrants generally flock to urban areas. In addition, these are areas where there are a greater number of workers in technology and scientific fields.  
+```{r,echo=FALSE}
+heatmap_ca
+```
+
+In Texas, the county with undoubtedly the most H1B visa holders is Harris County, which includes Houston. Houston generally leans more liberally than the rest of Texas, and is also a center for science and medical research in the state. The number of H1B visa holders in this county makes sense therefore, given the high skill required for these types of occupations.  
+```{r,echo=FALSE}
+heatmap_tx
+```
+
+Similarly, in Florida, H1B visas are concentrated primarily in the counties of Miami-Dade and Alachua. Miami-Dade County is home to Miami, which is a major urban center and leans decidedly Democratic in most elections. Alachua County does not have any major cities with populations of over 250,000, but is home to Gainesville, which houses the University of Florida. The large number of immigrants here can likely be explained due to the presence of the university, which is one of the largest universities in the United States. In general, we can see that the communities where H1B visa holders concentrate tend to be large, commercial centers with industries providing high-skill jobs, such as technology, scientific research, and medicine.  
+```{r,echo=FALSE}
+heatmap_fl
+```
+
+
+#CONCLUSION
+
+
