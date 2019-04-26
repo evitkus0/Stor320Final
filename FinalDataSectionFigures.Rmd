@@ -1,0 +1,119 @@
+---
+title: "FinalDataSectionFigures"
+author: "Aman Dalal"
+date: "4/25/2019"
+output: html_document
+indent: true
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+  The H1-B Visa is a high-skilled immigrant work visa in the United States under the Immigrant and Nationality Act which allows US employers to hire foreign-born workers for specialty occupations in the United States. United States Citizenship and Immigration Services (USCIS) receives over 200,000 H1-B visa applications from US Employers and approves approximately 80,000 applications through a randomized algorithm. The application data and approved application data is available for public access on the Department of Labor website under Annual Disclosure Data.
+
+
+  For our project we utilized the Prevailing Wage Program data from the Fiscal Year 2018 so the reporting period was from October 1, 2017 to September 30, 2018. For H1-B applications, the prevailing wage is defined as the average wage paid to similarly employed workers in the particular specialty occupation in the area of intended employment. Since USCIS requires that the hiring of an H1-B foreign worker will not adversely affect the wages or the working conditions of US employees working in the same or similar occupation the employer must prevailing wage determination application as a part of the H1-B application for the future employee. Before processing the H1-B application, USCIS will determine whether the salary assigned by the employer for the H1-B employee meets the minimum pay for workers with similar skills, training, and qualifications in the particular specialty occupation through the prevailing wage determination process. Our data set focuses particularly on the prevailing wage determination process.
+
+
+  Our original data set directly from the DOL website consisted of nearly 57 variables with 149,409 observations. Each observation (row) in this dataset represents a prevailing wage determination application filed by an employer for a particular H1-B candidate. For our first advanced modeling question we thoroughly cleaned the data set in order to focus on 12 variables. Additionally, we removed nearly eight thousand observations with multiple NA fields. The remaining 141,917 observations were divided into a training data set and a test data set. We assigned 106,437 observations to the training set and 35,480 observations to the test set. The following table defines the variables used in our advanced modeling question Q1:
+
+
+```{r include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
+install.packages("kableExtra", repos = "http://cran.us.r-project.org")
+devtools::install_github("haozhu233/kableExtra")
+library(knitr)
+library(kableExtra)
+```
+
+```{r include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
+install.packages("mapproj", repos = "http://cran.us.r-project.org")
+library(dplyr)
+library(plyr)
+library(tidyr)
+library(ggplot2)
+library(mapproj)
+devtools::install_github("wmurphyrd/fiftystater")
+library(fiftystater)
+data <- read.csv("h1data.csv", as.is=T)
+wage_data <- data[!is.na(data$PWD_WAGE_RATE),]
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+pwdTable1 <- data.frame(
+Field = c(
+"EMPLOYER_CITY",
+"EMPLOYER_STATE",
+"JOB_TITLE",
+"TRAVEL_REQUIRED",
+"PRIMARY EDUCATION LEVEL",
+"SECOND_DIPLOMA",
+"TRAINING_REQUIRED",
+"NUMBER_OF_MONTHS_TRAINING",
+"EMP_EXPERIENCE_REQUIRED",
+"EMP_EXPERIENCE_MONTHS",
+"PWD_WAGE_RATE"
+),
+Description = c(
+"Address information of the employer that is filing the Prevailing Wage Determination Form.",
+"Address information of the employer that is filing the Prevailing Wage Determination Form.",
+"Official title of the employer’s job opportunity.",
+"Identifies whether travel is required in order for the duties of the employer’s job opportunity to be performed.",
+"Identifies the minimum U.S. diploma or degree required by the employer for the job opportunity. Valid values include “None,” “High School/GED,” “Associate’s,” “Bachelor’s,” “Master’s,” “Doctorate (PhD),” and “Other degree (JD, MD, etc.)”.",
+"Identifies if there is an alternate major(s) and/or field(s) of study required by the employer for the job opportunity.
+Y= Yes; N=No.",
+"Identifies whether the employer is requiring training for the job opportunity. 
+Y = Yes; N = No.",
+"Identifies the number of months required for training.",
+"Identifies whether the employer is requiring employment experience for the job opportunity. Y = Yes; N = No.",
+"Where employment experience is required, identifies the number of months of employment experience the employer is requiring for the job opportunity.",
+"Prevailing wage rate issued by the OFLC National Prevailing Wage Center."
+  )
+)
+
+  kableExtra::kable(pwdTable1) %>%
+  kableExtra::kable_styling("striped", full_width = F) %>%
+  kableExtra::column_spec(1, bold = T, border_right = T)
+  
+
+
+```
+
+In order to effectively produce an advanced model, an important intermediary step was the thoroughly explore our dataset. We explored the variables in many ways but looking at the distribution of prevailing wages based on education level helped us determine that it was an important variable relationship to explore in our model. Additionally, we examined the spread of H1-B visas throughout the United States in order to determine which states we should further explore in our heatmap analysis. 
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+data <- read.csv("h1data.csv", as.is=T)
+wage_data <- data[!is.na(data$PWD_WAGE_RATE),]
+ddply(wage_data,~PRIMARY_EDUCATION_LEVEL,summarise,mean=mean(PWD_WAGE_RATE),sd=sd(PWD_WAGE_RATE))
+level <- c("None", "High School/GED", "Associate's", "Bachelor's", "Master's", "Doctorate (PhD)", "Other Degree (JD, MD, etc.)")
+ggplot(wage_data, aes(factor(PRIMARY_EDUCATION_LEVEL, levels = level), PWD_WAGE_RATE)) +
+  geom_violin(aes(fill = factor(PRIMARY_EDUCATION_LEVEL))) +
+  ggtitle("Distribution of Wages by Education Level") +
+  xlab("Primary Education Level") +
+  ylab("Prevailing Wage Rate") +
+  labs(fill = "Primary Education Level") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+count <- aggregate(cbind(count = VISA_CLASS) ~ PRIMARY_WORKSITE_STATE,
+          data = data,
+          FUN = function(x){NROW(x)})
+count <- count[-c(8,35,40,48),]
+
+
+count$PRIMARY_WORKSITE_STATE <- tolower(count$PRIMARY_WORKSITE_STATE)
+ggplot(count, aes(map_id = PRIMARY_WORKSITE_STATE)) +
+  # map points to the fifty_states shape data
+  geom_map(aes(fill = count), map = fifty_states) +
+  borders("state", colour = "white") +
+  scale_fill_gradient(low = "#56B1F7", high = "#132B43", guide = "colorbar") +
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  coord_map() +
+  scale_x_continuous(breaks = NULL) +
+  scale_y_continuous(breaks = NULL) +
+  ggtitle("Number of H1B Visa Holders by State") +
+  labs(x = "", y = "", fill = "Count") +
+  theme(legend.position = "bottom", panel.background = element_blank())
+```
+
+
