@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE, message=FALSE,warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "D:/Document/2018-2019/Stor320/Final Project/")
 library(tidyverse)
 library(dplyr)
 library(plyr)
@@ -26,6 +27,7 @@ devtools::install_github("haozhu233/kableExtra")
 library(knitr)
 library(kableExtra)
 ```
+
 ```{r, echo=F, message=FALSE,warning=FALSE}
 dataOrg <- read_csv("D:/Document/2018-2019/Stor320/Final Project/PWD_Disclosure_Data_FY2018_EOY.csv")
 
@@ -100,7 +102,7 @@ graph1actual = dataCleanModel %>% filter(PWD_WAGE_RATE<500000) %>% ggplot() + ge
   scale_y_continuous(breaks=seq(0,300000,100000),labels =  dollar_format())
 ```
 
-```{r summary, echo=F}
+```{r  echo=F}
 data <- read.csv("D:/Document/2018-2019/Stor320/Final Project/h1data.csv", as.is=T)
 data = dplyr::rename(data,VISA_CLASS = `ï..VISA_CLASS`)
 states <- map_data("state")
@@ -204,12 +206,17 @@ heatmap_ca = ca_map + geom_point(data = ca_city, aes(long, lat), inherit.aes = F
 heatmap_tx =  tx_map + geom_point(data = tx_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = tx_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in Texas", subtitle = "Cities with population >250,000 labeled")
 heatmap_fl = fl_map + geom_point(data = fl_city, aes(long, lat), inherit.aes = FALSE, color = "white", size = 1) + geom_label_repel(data = fl_city, aes(long, lat, label = name), size = 2, inherit.aes = FALSE) + labs(title = "H1B Visas by county in Florida", subtitle = "Cities with population >250,000 labeled")
 ```
-```
 
 
-# INTRODUCTION
+#INTRODUCTION
 
-# DATA
+  In the current American political context, immigration is a hot bed issue. Our current administration has aligned strongly with an isolationist policy; opting to make the process harder and longer to reside legally in this country. A recent study done by the Washington Post determined that in the first two years of Trump's administration, the number of people granted visas by the United States government dropped by twelve percent. Current Trump administration rhetoric leans towards the beliefs that immigrants are causing the United States unnecessary burden and act as a national security liability. As a result, the administration cites these statistically unproven claims as reasons to restrict the flow of immigrants into this country. In order to avoid conclusions not based in reality, our team decided to do a deep dive into the statistics and trends of the H1-B visa dataset collected by the US Department of Labor. It is also important to note that the H1-B visa is given to highly skilled immigrants. These immigrants are highly educated, and generally pursuing or have obtained advanced degrees in technology, medicine, business etc. We posed and examined many questions during our initial data exploration but settled on two distinct questions to gain additional insights from.
+  
+  Our initial deep dive was to find the underlying principles that impact immigrant salary. We wanted to create a model that would be able to predict an individual's salary given certain parameters. Ideally, this work would be used by either a highly skilled potential immigrant looking to come to the United States to understand how much they should expect to make or a business wanting to learn more about the current market rate for labor. In addition, we wanted to examine the impact of certain individual parameters such as but not limited to; employer location, length of experience, job title, etc. on salary. The ultimate ability for this model is to effectively predict financial compensation given certain parameters.
+	
+  Our second analysis was focused on the spatial relationship of the number of H1-B Visa holders. We wanted to examine what communities the highest quantity of H1-B visa holders were moving and working. "By endorsing legal immigration cuts, a move he has long supported, Mr. Trump returned to a theme that has defined his short political career and excites his conservative base."(NYTIMES). Trump's traditional, conservative base is strongly located in more rural communities strongly dominated in the Midwest and South. We wanted to investigate if large numbers of immigrants were moving into these pro Trump communities and whether Trump's throttling of legal immigration would even impact the cities and towns where his supporters reside.
+
+#DATA
 
   The H1-B Visa is a high-skilled immigrant work visa in the United States under the Immigrant and Nationality Act which allows US employers to hire foreign-born workers for specialty occupations in the United States. United States Citizenship and Immigration Services (USCIS) receives over 200,000 H1-B visa applications from US Employers and approves approximately 80,000 applications through a randomized algorithm. The application data and approved application data is available for public access on the Department of Labor website under Annual Disclosure Data.
 
@@ -219,50 +226,25 @@ heatmap_fl = fl_map + geom_point(data = fl_city, aes(long, lat), inherit.aes = F
 
   Our original data set directly from the DOL website consisted of nearly 57 variables with 149,409 observations. Each observation (row) in this dataset represents a prevailing wage determination application filed by an employer for a particular H1-B candidate. For our first advanced modeling question we thoroughly cleaned the data set in order to focus on 12 variables. Additionally, we removed nearly eight thousand observations with multiple NA fields. The remaining 141,917 observations were divided into a training data set and a test data set. We assigned 106,437 observations to the training set and 35,480 observations to the test set. The following table defines the variables used in our advanced modeling question Q1:
 
-```{r message=FALSE, warning=FALSE, echo=FALSE}
+| FIELDS                    | DESCRIPTION                                                                                                                                                                                                                                    |
+|---------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| EMPLOYER_CITY             | Address information of the employer that is filing the Prevailing Wage Determination Form.                                                                                                                                                     |
+| EMPLOYER_STATE            | Address information of the employer that is filing the Prevailing Wage Determination Form                                                                                                                                                      |
+| JOB_TITLE                 | Official title of the employer's job opportunity.                                                                                                                                                                                              |
+| TRAVEL_REQUIRED           | Identifies whether travel is required in order for the duties of the employer's job opportunity to be performed.                                                                                                                               |
+| PRIMARY EDUCATION LEVEL   | Identifies the minimum U.S. diploma or degree required by the employer for the job opportunity. Valid values include "None," "High School/GED," "Associate's," "Bachelor's," "Master's," "Doctorate (PhD)," and "Other degree (JD, MD, etc.)". |
+| SECOND_DIPLOMA            | Identifies if there is an alternate major(s) and/or field(s) of study required by the employer for the job opportunity.Y= Yes; N=No.                                                                                                           |
+| TRAINING_REQUIRED         | Identifies whether the employer is requiring training for the job opportunity. Y = Yes; N = No.                                                                                                                                                |
+| NUMBER_OF_MONTHS_TRAINING | Identifies the number of months required for training.                                                                                                                                                                                         |
+| EMP_EXPERIENCE_REQUIRED   | Identifies whether the employer is requiring employment experience for the job opportunity. Y = Yes; N = No.                                                                                                                                   |
+| EMP_EXPERIENCE_MONTHS     | Where employment experience is required, identifies the number of months of employment experience the employer is requiring for the job opportunity.                                                                                           |
+| PWD_WAGE_RATE             | Prevailing wage rate issued by the OFLC National Prevailing Wage Center.                                                                                                                                                                       |
+
+
+  In order to effectively produce an advanced model, an important intermediary step was the thoroughly explore our dataset. We explored the variables in many ways but looking at the distribution of prevailing wages based on education level helped us determine that it was an important variable relationship to explore in our model. Additionally, we examined the spread of H1-B visas throughout the United States in order to determine which states we should further explore in our heatmap analysis. 
+
+```{r echo=FALSE, warning=F, message=F}
 wage_data <- data[!is.na(data$PWD_WAGE_RATE),]
-pwdTable1 <- data.frame(
-Field = c(
-"EMPLOYER_CITY",
-"EMPLOYER_STATE",
-"JOB_TITLE",
-"TRAVEL_REQUIRED",
-"PRIMARY EDUCATION LEVEL",
-"SECOND_DIPLOMA",
-"TRAINING_REQUIRED",
-"NUMBER_OF_MONTHS_TRAINING",
-"EMP_EXPERIENCE_REQUIRED",
-"EMP_EXPERIENCE_MONTHS",
-"PWD_WAGE_RATE"
-),
-Description = c(
-"Address information of the employer that is filing the Prevailing Wage Determination Form.",
-"Address information of the employer that is filing the Prevailing Wage Determination Form.",
-"Official title of the employer's job opportunity.",
-"Identifies whether travel is required in order for the duties of the employer's job opportunity to be performed.",
-"Identifies the minimum U.S. diploma or degree required by the employer for the job opportunity. Valid values include "None," "High School/GED," "Associate's," "Bachelor's," "Master's," "Doctorate (PhD)," and "Other degree (JD, MD, etc.)".",
-"Identifies if there is an alternate major(s) and/or field(s) of study required by the employer for the job opportunity.
-Y= Yes; N=No.",
-"Identifies whether the employer is requiring training for the job opportunity. 
-Y = Yes; N = No.",
-"Identifies the number of months required for training.",
-"Identifies whether the employer is requiring employment experience for the job opportunity. Y = Yes; N = No.",
-"Where employment experience is required, identifies the number of months of employment experience the employer is requiring for the job opportunity.",
-"Prevailing wage rate issued by the OFLC National Prevailing Wage Center."
-  )
-)
-
-  kableExtra::kable(pwdTable1) %>%
-  kableExtra::kable_styling("striped", full_width = F) %>%
-  kableExtra::column_spec(1, bold = T, border_right = T)
-```
-
-
-In order to effectively produce an advanced model, an important intermediary step was to thoroughly explore our dataset. We explored the variables in many ways but looking at the distribution of prevailing wages based on education level helped us determine that it was an important variable relationship to explore in our model. Additionally, we examined the spread of H1-B visas throughout the United States in order to determine which states we should further explore in our heatmap analysis. 
-
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
-wage_data <- data[!is.na(data$PWD_WAGE_RATE),]
-ddply(wage_data,~PRIMARY_EDUCATION_LEVEL,summarise,mean=mean(PWD_WAGE_RATE),sd=sd(PWD_WAGE_RATE))
 level <- c("None", "High School/GED", "Associate's", "Bachelor's", "Master's", "Doctorate (PhD)", "Other Degree (JD, MD, etc.)")
 ggplot(wage_data, aes(factor(PRIMARY_EDUCATION_LEVEL, levels = level), PWD_WAGE_RATE)) +
   geom_violin(aes(fill = factor(PRIMARY_EDUCATION_LEVEL))) +
@@ -271,13 +253,10 @@ ggplot(wage_data, aes(factor(PRIMARY_EDUCATION_LEVEL, levels = level), PWD_WAGE_
   ylab("Prevailing Wage Rate") +
   labs(fill = "Primary Education Level") +
   theme(axis.text.x=element_text(angle=45, hjust=1))
-
 count <- aggregate(cbind(count = VISA_CLASS) ~ PRIMARY_WORKSITE_STATE,
           data = data,
           FUN = function(x){NROW(x)})
 count <- count[-c(8,35,40,48),]
-
-
 count$PRIMARY_WORKSITE_STATE <- tolower(count$PRIMARY_WORKSITE_STATE)
 ggplot(count, aes(map_id = PRIMARY_WORKSITE_STATE)) +
   # map points to the fifty_states shape data
@@ -292,6 +271,7 @@ ggplot(count, aes(map_id = PRIMARY_WORKSITE_STATE)) +
   labs(x = "", y = "", fill = "Count") +
   theme(legend.position = "bottom", panel.background = element_blank())
 ```
+
 
 # RESULTS
 
@@ -330,4 +310,10 @@ heatmap_fl
 
 #CONCLUSION
 
+
+  Our driving principle for conducting this project was to glean meaningful insights from our immigration data. In order to be responsible citizens of our democracy, it is imperative to make our decisions based on strong facts and conclusive data. We examined the impact of certain parameters on immigrant salary as well as the most popular locations for H1-B immigrants. We found that the most H1-B visa holders were working in the states of California, Texas, and Florida. The immigrants were predominately moving to large urban city centers where there is a strong collection of industry sectors like technology, research, and science. Most of these cities lean democratic and are typically centers of research and technology for their states. Our predictive model to find the relationship between salary and dataset parameters found that the most important indicators for determining an immigrant's salary was the SOC_CODE, PRIMARY_EDUCATION, EMP_EXPERIENCE_MONTHS. SOC_CODE is an industry classification developed by the US Department of Labor to group and organize occupations. Our final model predicting salary had a RMSE of $21,406 and a R2 value of 0.78.
+	
+  Our conclusions seem to be in line with our initial hypothesis. It would make sense that people moving to the United States on the H1-B visa would move to large cities where there is ample opportunity for highly skilled work. Regarding our model, it would also make sense that the most important factors for determining an individual's salary would be the job and industry that they are in, followed closely by their prior experience and education level. The model that was developed has many applications for understanding the way that H1-B visa holders are compensated. The model is incredibly useful for any foreign citizen who wants to estimate their earning potential in the United States. Further investigation could glean additional information about more advanced statistics concerning other factors and parameters. 
+    
+  We were interested in investigating whether the variables within the prevailing wage determination process had an impact on whether they were accepted. In order to accomplish this feat, we would have to acquire more data. Our current dataset does not state whether or not a visa was accepted or denied. We would need to join the H1-B dataset with our prevailing wage dataset and match based on the visa applicants unique identifier. To create a model to predict acceptance or not we could create a classifying random forest with the classifier being acceptance or rejection. Additionally, we would have to choose new parameters to train our model on. Before developing our random forest model we attempted to join all of our 150,000 observations on case number with another dataset that contained the acceptance or denial status of the H1-B petition. However the formats of the case numbers in both datasets did not match up so we were unsuccessful. The future roadmap for this data analysis would be to join on case number with a dataset that contains this information and adjust the model to predict the final case status of an H1-B petition. 
 
